@@ -7,7 +7,19 @@
     "default_popup": "popup.html",
     "default_icon": "icon.png"
   },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": [
+    "scripting"
+  ],
   "host_permissions": [
-    "https://asc.iitb.ac.in/*" 
+    "https://asc.iitb.ac.in/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["https://asc.iitb.ac.in/*"],
+      "js": ["content.js"]
+    }
   ]
 }
