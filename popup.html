@@ -5,22 +5,52 @@
     <style>
         body {
             font-family: sans-serif;
-            width: 250px; /* Set a fixed width for the popup */
+            width: 250px;
+            padding: 10px;
         }
         input {
             width: 95%;
             margin-bottom: 10px;
+            padding: 5px;
         }
         button {
             width: 100%;
             padding: 8px;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        #status {
+            margin-top: 10px;
+            padding: 8px;
+            border-radius: 4px;
+            display: none;
+        }
+        .error {
+            background-color: #ffebee;
+            color: #c62828;
+        }
+        .success {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+        }
+        .loading {
+            background-color: #e3f2fd;
+            color: #1565c0;
         }
     </style>
 </head>
 <body>
-    <h3>Enter Course Code</h3>
+    <h3>ASC Course Helper</h3>
     <input type="text" id="courseCodeInput" placeholder="e.g., CS101">
     <button id="getStatsBtn">Get Stats</button>
+    <div id="status"></div>
 
     <script src="popup.js"></script>
 </body>

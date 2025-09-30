@@ -11,15 +11,21 @@
     "service_worker": "background.js"
   },
   "permissions": [
-    "scripting"
+    "scripting",
+    "activeTab"
   ],
   "host_permissions": [
     "https://asc.iitb.ac.in/*"
   ],
   "content_scripts": [
     {
-      "matches": ["https://asc.iitb.ac.in/*"],
-      "js": ["content.js"]
+      "matches": [
+        "https://asc.iitb.ac.in/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle"
     }
   ]
 }

@@ -2,26 +2,44 @@
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === "fetchGrades") {
-        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
             if (!tabs.length) {
                 sendResponse({ error: "No active tab found." });
                 return;
             }
             
+            const tab = tabs[0];
+            
+            // Check if we're on the ASC website
+            if (!tab.url || !tab.url.startsWith('https://asc.iitb.ac.in/')) {
+                sendResponse({ error: "Please navigate to asc.iitb.ac.in first." });
+                return;
+            }
+            
+            try {
+                // Try to inject the content script if it's not already there
+                await chrome.scripting.executeScript({
+                    target: { tabId: tab.id },
+                    files: ['content.js']
+                });
+                
+                // Wait a bit for the script to initialize
+                await new Promise(resolve => setTimeout(resolve, 100));
+            } catch (e) {
+                // Script might already be injected, which is fine
+                console.log("Content script might already be injected:", e);
+            }
+            
             // Ping the content script to get the special Referer URL
-            chrome.tabs.sendMessage(tabs[0].id, { action: "ping" }, async (response) => {
-                // --- THIS IS THE CORRECTED ERROR HANDLING ---
+            chrome.tabs.sendMessage(tab.id, { action: "ping" }, async (response) => {
                 if (chrome.runtime.lastError) {
-                    // This block runs if the content script doesn't exist on the page
                     sendResponse({ error: "Could not connect to the ASC page. Please refresh the page and try again." });
                     return;
                 }
                 if (response.status === "error") {
-                    // This block runs if the content script exists, but sent back an error
                     sendResponse({ error: response.message });
                     return;
                 }
-                // ---------------------------------------------
 
                 const referrerUrl = response.href;
                 const courseCode = request.courseCode;
