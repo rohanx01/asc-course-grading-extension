@@ -1,30 +1,40 @@
 // content.js
-console.log("✅ ASC Helper Content Script is running!");
-console.log("Frame location:", window.location.href);
-console.log("Is top frame:", window === window.top);
 
-// content.js
+// Injection guard to prevent the script from running multiple times
+if (typeof window.ascHelperInjected === 'undefined') {
+    window.ascHelperInjected = true;
+    console.log(`✅ ASC Helper Content Script injected into frame: "${window.name}"`);
 
-// This script will be injected into ALL frames, but the logic below
-// ensures that only the script in the 'leftPage' frame will do the work.
+    chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+        // This guard ensures that ONLY the script inside the 'rightPage' frame will act as the master.
+        if (request.action === "ping" && window.name === 'rightPage') {
+            console.log("Ping received by the correct 'rightPage' frame.");
+            try {
+                // 1. From 'rightPage', access the sibling 'leftPage' frame via the parent window.
+                const menuFrame = window.parent.frames['leftPage'];
+                if (!menuFrame) {
+                    throw new Error("Could not access the 'leftPage' menu frame from the 'rightPage'.");
+                }
 
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    // SAFETY GUARD: Only the menu frame should respond to the ping.
-    if (request.action === "ping" && window.name === 'leftPage') {
-        console.log("✅ Ping received by the correct 'leftPage' frame.");
-        try {
-            // Find the link within this frame's document
-            const statsLink = document.querySelector('a[href*="gradstatistics.jsp"]');
-            if (statsLink) {
-                console.log("Found link in 'leftPage'. Responding with href:", statsLink.href);
-                sendResponse({ status: "ready", href: statsLink.href });
-            } else {
-                throw new Error("Could not find 'Grading Statistics' link in the 'leftPage' frame.");
+                // 2. Look for the link inside the menu frame's document.
+                const statsLink = menuFrame.document.querySelector('a[href*="gradstatistics.jsp"]');
+                
+                if (statsLink) {
+                    console.log("SUCCESS: Found link in sibling 'leftPage' frame:", statsLink.href);
+                    // 3. Respond with the tokenized URL.
+                    sendResponse({ 
+                        status: "ready", 
+                        href: statsLink.href,
+                        cookie: window.parent.document.cookie // Send cookies if needed 
+                    });
+                } else {
+                    throw new Error("Could not find the 'Grading Statistics' link inside the 'leftPage' frame.");
+                }
+            } catch (error) {
+                console.error("Error in rightPage frame:", error.message);
+                sendResponse({ status: "error", message: error.message });
             }
-        } catch (error) {
-            console.error("Error in leftPage frame:", error.message);
-            sendResponse({ status: "error", message: error.message });
         }
-    }
-    // All other frames will ignore the ping and do nothing.
-});
+        // Scripts in all other frames will ignore the ping.
+    });
+}
