@@ -3,8 +3,18 @@ document.addEventListener('DOMContentLoaded', function() {
     const courseCodeInput = document.getElementById('courseCodeInput');
     const statusDiv = document.getElementById('status');
 
+    // Check current tab on load
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (tabs[0]) {
+            console.log("Current tab URL:", tabs[0].url);
+            if (!tabs[0].url.startsWith('https://asc.iitb.ac.in/')) {
+                showStatus("⚠️ Please navigate to asc.iitb.ac.in", "error");
+            }
+        }
+    });
+
     getStatsBtn.addEventListener('click', function() {
-        const courseCode = courseCodeInput.value.trim().toLowerCase();
+        const courseCode = courseCodeInput.value.trim().toUpperCase();
 
         if (!courseCode) {
             showStatus("Please enter a course code.", "error");
@@ -27,17 +37,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Re-enable button
                 getStatsBtn.disabled = false;
                 
+                console.log("Response received:", response);
+                
                 // Handle the response
-                if (response.error) {
+                if (response && response.error) {
                     console.error("Error received from background script:", response.error);
                     showStatus(response.error, "error");
-                } else {
+                } else if (response && response.data) {
                     console.log("HTML received from background script:");
                     console.log(response.data);
-                    showStatus("Grades fetched successfully!", "success");
+                    showStatus("✅ Grades fetched successfully!", "success");
                     
                     // TODO: Parse and display the grades here
-                    // You can parse response.data (the HTML) and display it nicely
+                } else {
+                    showStatus("❌ No response received", "error");
                 }
             }
         );

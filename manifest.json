@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
-  "name": "ASC Course Helper",
-  "version": "0.1",
+  "name": "ASC Grade Helper",
+  "version": "1.0",
   "description": "Fetches and displays grading stats for courses.",
   "action": {
     "default_popup": "popup.html",
@@ -11,8 +11,7 @@
     "service_worker": "background.js"
   },
   "permissions": [
-    "scripting",
-    "activeTab"
+    "webNavigation"
   ],
   "host_permissions": [
     "https://asc.iitb.ac.in/*"
@@ -25,7 +24,7 @@
       "js": [
         "content.js"
       ],
-      "run_at": "document_idle"
+      "all_frames": true
     }
   ]
 }
