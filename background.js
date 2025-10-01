@@ -1,4 +1,5 @@
 // background.js
+
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === "fetchGrades") {
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
@@ -8,7 +9,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             }
             const tabId = tabs[0].id;
             
-            // Pass the array of course codes to the scraper
             performInPageScrape(tabId, request.courseCodes)
                 .then(htmlArray => sendResponse({ data: htmlArray }))
                 .catch(error => sendResponse({ error: error.message }));
@@ -18,18 +18,41 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 });
 
 async function performInPageScrape(tabId, courseCodes) {
-    const results = await chrome.scripting.executeScript({
-        target: { tabId: tabId },
-        func: scrapeFunction,
-        args: [courseCodes] // Pass the array here
-    });
-    const resultValue = results[0];
-    if (typeof resultValue === 'string' && resultValue.startsWith('Error:')) {
-        throw new Error(resultValue);
+    try {
+        // --- STEP 1: Execute the main scraping script to get the data ---
+        const results = await chrome.scripting.executeScript({
+            target: { tabId: tabId },
+            func: scrapeFunction,
+            args: [courseCodes]
+        });
+        
+        const resultValue = results[0].result;
+        if (typeof resultValue === 'string' && resultValue.startsWith('Error:')) {
+            throw new Error(resultValue);
+        }
+        return resultValue; // Return the data to the popup
+
+    } finally {
+        // --- STEP 2: GUARANTEED - This runs after the scraping is done ---
+        // Inject a final, simple script to navigate the user back.
+        console.log("Scraping finished. Navigating back to 'Running Courses'.");
+        await chrome.scripting.executeScript({
+            target: { tabId: tabId },
+            func: () => {
+                const menuFrame = window.frames['leftPage'];
+                if (menuFrame) {
+                    const runCoursesLink = menuFrame.document.querySelector('a[href*="allDept.jsp"]');
+                    if (runCoursesLink) {
+                        runCoursesLink.click();
+                    }
+                }
+            }
+        });
     }
-    return resultValue;
 }
 
+// This "master script" now ONLY focuses on scraping data.
+// The 'finally' block has been REMOVED from this function.
 async function scrapeFunction(courseCodes) {
     const waitForElementInFrame = (frame, selector) => {
         return new Promise((resolve, reject) => {
@@ -58,17 +81,12 @@ async function scrapeFunction(courseCodes) {
         const statsLink = menuFrame.document.querySelector('a[href*="gradstatistics.jsp"]');
         if (!statsLink) throw new Error(`Could not find 'Grading statistics' link.`);
         
-        const allResults = []; // Array to store the HTML of each grade table
+        const allResults = [];
 
-        // --- THIS IS THE NEW LOOPING LOGIC ---
         for (const courseCode of courseCodes) {
-            console.log(`Processing course: ${courseCode}`);
-            
-            // 1. Navigate to the search page
             statsLink.click();
             await waitForElementInFrame(mainFrame, 'input[name="txtcrsecode"]');
 
-            // 2. Fill and submit the form for the current course
             const mainFrameDoc = mainFrame.document;
             const yearInput = mainFrameDoc.querySelector('select[name="year"]');
             const semInput = mainFrameDoc.querySelector('select[name="semester"]');
@@ -86,7 +104,6 @@ async function scrapeFunction(courseCodes) {
             
             HTMLFormElement.prototype.submit.call(form);
             
-            // 3. Wait for the results and scrape the table
             await waitForElementInFrame(mainFrame, '#grades'); 
             const gradesTable = mainFrame.document.getElementById('grades');
             if (gradesTable) {
@@ -95,10 +112,7 @@ async function scrapeFunction(courseCodes) {
                 allResults.push(``);
             }
         }
-        // --- END OF LOOP ---
-
-        return allResults; // Return the array of all HTML tables
-
+        return allResults;
     } catch (error) {
         return `Error: ${error.message}`;
     }
