@@ -46,7 +46,7 @@ async function scrapeAndCacheData(tabId) {
         // 2. Perform the main scrape
         const html = await performInPageScrape(tabId, courseCode);
         console.log(`Successfully scraped grades for ${courseCode}. Caching.`);
-
+ 
         // 3. Cache the final HTML result
         await chrome.storage.local.set({ [tabId]: { status: 'success', html: html } });
 
@@ -65,11 +65,13 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 function getCourseCodeFromPage() {
     const titleElement = document.querySelector('font[color="red"][size="4"]');
     if (titleElement) {
+        console.log("Found title element for course code extraction.", titleElement.textContent);
         const text = titleElement.textContent;
         // Use a regular expression to find a pattern like "ME 103" or "CS101"
         const match = text.match(/[A-Z]{2}\s*\d{3}/);
         return match ? match[0].replace(/\s+/g, '') : null; // Return cleaned code, e.g., "CS101"
     }
+    console.log("Could not find the title element for course code extraction.");
     return null;
 }
 
