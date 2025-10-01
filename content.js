@@ -16,7 +16,7 @@ if (typeof window.ascHelperInjected === 'undefined') {
          */
         const checkForCourseForm = () => {
             console.log("DOM loaded. Checking for course form...");
-            const targetSelector = 'form[action="crseedetailupdate.jsp"]';
+            const targetSelector = 'form[action="crsedetailupdate.jsp"]';
 
             if (document.querySelector(targetSelector)) {
                 console.log("🎯 Course form FOUND! Sending message to background script.");
