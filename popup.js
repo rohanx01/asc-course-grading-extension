@@ -14,46 +14,29 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     getStatsBtn.addEventListener('click', function() {
-        const courseCode = courseCodeInput.value.trim().toUpperCase();
+        const courseInput = courseCodeInput.value.trim();
+        if (!courseInput) return;
 
-        if (!courseCode) {
-            showStatus("Please enter a course code.", "error");
-            return;
-        }
+        // Split the input string by commas and clean up each code
+        const courseCodes = courseInput.split(',').map(code => code.trim().toUpperCase());
 
-        // Disable button and show loading
         getStatsBtn.disabled = true;
-        showStatus("Fetching grades...", "loading");
+        getStatsBtn.textContent = 'Working...';
         
-        console.log("Popup sending message to background script for:", courseCode);
-        
-        // Send a message to the background script
-        chrome.runtime.sendMessage(
-            {
-                action: "fetchGrades",
-                courseCode: courseCode
-            },
-            (response) => {
-                // Re-enable button
-                getStatsBtn.disabled = false;
-                
-                console.log("Response received:", response);
-                
-                // Handle the response
-                if (response && response.error) {
-                    console.error("Error received from background script:", response.error);
-                    showStatus(response.error, "error");
-                } else if (response && response.data) {
-                    console.log("HTML received from background script:");
-                    console.log(response.data);
-                    showStatus("✅ Grades fetched successfully!", "success");
-                    
-                    // TODO: Parse and display the grades here
-                } else {
-                    showStatus("❌ No response received", "error");
-                }
+        // Send the array of course codes to the background script
+        chrome.runtime.sendMessage({ action: "fetchGrades", courseCodes: courseCodes }, (response) => {
+            if (response && response.error) {
+                console.error("Error from background script:", response.error);
+            } else if (response && response.data) {
+                console.log(`SUCCESS! Received ${response.data.length} grade tables:`);
+                console.log(response.data); // This will be an array of HTML strings
+            } else {
+                console.error("Received an empty or invalid response.");
             }
-        );
+            
+            getStatsBtn.disabled = false;
+            getStatsBtn.textContent = 'Get Stats';
+        });
     });
 
     function showStatus(message, type) {
