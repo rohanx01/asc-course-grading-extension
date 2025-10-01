@@ -1,21 +1,77 @@
 // background.js
 
+// Listen for the signal from our content script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.action === "fetchGrades") {
+    // This is the trigger from content.js
+    if (request.action === "course_page_detected") {
+        const tabId = sender.tab.id;
+        console.log(`Course page detected on tab ${tabId}. Starting proactive automation.`);
+        
+        // Clear old data for this tab
+        chrome.storage.local.remove(tabId.toString());
+
+        // Run the scraping process
+        scrapeAndCacheData(tabId);
+    }
+    
+    // This is the request from the popup asking for the data
+    if (request.action === "get_cached_data") {
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-            if (!tabs.length) {
-                sendResponse({ error: "No active tab found." });
-                return;
-            }
-            const tabId = tabs[0].id;
-            
-            performInPageScrape(tabId, request.courseCode)
-                .then(html => sendResponse({ data: html }))
-                .catch(error => sendResponse({ error: error.message }));
+            const activeTabId = tabs[0].id;
+            chrome.storage.local.get(activeTabId.toString(), (result) => {
+                sendResponse(result[activeTabId] || null);
+            });
         });
-        return true; 
+        return true; // Indicates async response
     }
 });
+
+// Main function to run the whole scraping process
+async function scrapeAndCacheData(tabId) {
+    try {
+        await chrome.storage.local.set({ [tabId]: { status: 'scraping' } });
+
+        // 1. Get the course code
+        const codeResults = await chrome.scripting.executeScript({
+            target: { tabId: tabId },
+            func: getCourseCodeFromPage,
+        });
+
+        if (!codeResults || !codeResults[0].result) {
+            throw new Error("Could not find a course code on the page.");
+        }
+        const courseCode = codeResults[0].result;
+        console.log(`Found course code: ${courseCode}.`);
+
+        // 2. Perform the main scrape
+        const html = await performInPageScrape(tabId, courseCode);
+        console.log(`Successfully scraped grades for ${courseCode}. Caching.`);
+
+        // 3. Cache the final HTML result
+        await chrome.storage.local.set({ [tabId]: { status: 'success', html: html } });
+
+    } catch (error) {
+        console.error("Scraping failed:", error);
+        await chrome.storage.local.set({ [tabId]: { status: 'error', error: error.message } });
+    }
+}
+
+// Clean up storage when a tab is closed
+chrome.tabs.onRemoved.addListener((tabId) => {
+    chrome.storage.local.remove(tabId.toString());
+});
+
+// This is the small function injected to find the course code from the <font> tag
+function getCourseCodeFromPage() {
+    const titleElement = document.querySelector('font[color="red"][size="4"]');
+    if (titleElement) {
+        const text = titleElement.textContent;
+        // Use a regular expression to find a pattern like "ME 103" or "CS101"
+        const match = text.match(/[A-Z]{2}\s*\d{3}/);
+        return match ? match[0].replace(/\s+/g, '') : null; // Return cleaned code, e.g., "CS101"
+    }
+    return null;
+}
 
 async function performInPageScrape(tabId, courseCode) {
     const results = await chrome.scripting.executeScript({

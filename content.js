@@ -1,40 +1,37 @@
 // content.js
 
-// Injection guard to prevent the script from running multiple times
+// Injection guard to prevent the script from running multiple times in the same frame load.
 if (typeof window.ascHelperInjected === 'undefined') {
     window.ascHelperInjected = true;
-    console.log(`✅ ASC Helper Content Script injected into frame: "${window.name}"`);
 
-    chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-        // This guard ensures that ONLY the script inside the 'rightPage' frame will act as the master.
-        if (request.action === "ping" && window.name === 'rightPage') {
-            console.log("Ping received by the correct 'rightPage' frame.");
-            try {
-                // 1. From 'rightPage', access the sibling 'leftPage' frame via the parent window.
-                const menuFrame = window.parent.frames['leftPage'];
-                if (!menuFrame) {
-                    throw new Error("Could not access the 'leftPage' menu frame from the 'rightPage'.");
-                }
+    const frameName = window.name; // Get the name of the current frame
+    console.log(`ASC Helper content script injected into frame: "${frameName}"`);
 
-                // 2. Look for the link inside the menu frame's document.
-                const statsLink = menuFrame.document.querySelector('a[href*="gradstatistics.jsp"]');
-                
-                if (statsLink) {
-                    console.log("SUCCESS: Found link in sibling 'leftPage' frame:", statsLink.href);
-                    // 3. Respond with the tokenized URL.
-                    sendResponse({ 
-                        status: "ready", 
-                        href: statsLink.href,
-                        cookie: window.parent.document.cookie // Send cookies if needed 
-                    });
-                } else {
-                    throw new Error("Could not find the 'Grading Statistics' link inside the 'leftPage' frame.");
-                }
-            } catch (error) {
-                console.error("Error in rightPage frame:", error.message);
-                sendResponse({ status: "error", message: error.message });
+    // Only the script inside the 'rightPage' frame should do the work.
+    if (frameName === 'rightPage') {
+        
+        /**
+         * This function runs once the frame's content has loaded.
+         * It simply checks if the target form exists on the page.
+         */
+        const checkForCourseForm = () => {
+            console.log("DOM loaded. Checking for course form...");
+            const targetSelector = 'form[action="crseedetailupdate.jsp"]';
+
+            if (document.querySelector(targetSelector)) {
+                console.log("🎯 Course form FOUND! Sending message to background script.");
+                chrome.runtime.sendMessage({ action: "course_page_detected" });
+            } else {
+                console.log("❌ Course form not found on this page.");
             }
+        };
+
+        // --- The Robust Check ---
+        // We check the document's state to decide whether to run now or wait.
+        if (document.readyState === 'interactive' || document.readyState === 'complete') {
+            checkForCourseForm(); // Run immediately if DOM is already ready
+        } else {
+            window.addEventListener('DOMContentLoaded', checkForCourseForm); // Wait for the event
         }
-        // Scripts in all other frames will ignore the ping.
-    });
+    }
 }
