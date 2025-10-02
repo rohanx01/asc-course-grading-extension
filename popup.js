@@ -1,67 +1,89 @@
 // popup.js
 document.addEventListener('DOMContentLoaded', function() {
-    const getStatsBtn = document.getElementById('getStatsBtn');
-    const courseCodeInput = document.getElementById('courseCodeInput');
+    const addCourseBtn = document.getElementById('add-course-btn');
+    const getStatsBtn = document.getElementById('get-stats-btn');
+    const courseList = document.getElementById('course-list');
     const statusDiv = document.getElementById('status');
 
-    // Function to show status messages in the popup
-    function showStatus(message, type) {
+    const showStatus = (message) => {
         statusDiv.textContent = message;
-        statusDiv.className = type; // 'error' or 'success'
         statusDiv.style.display = 'block';
-    }
+    };
 
-    getStatsBtn.addEventListener('click', function() {
-        statusDiv.style.display = 'none'; // Hide previous status messages
-        const courseInput = courseCodeInput.value.trim();
-        if (!courseInput) {
-            showStatus("Please enter at least one course code.", "error");
+    // Function to add a new row to the table
+    const addCourseRow = () => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td><input type="text" class="course-code" placeholder="e.g., CS101"></td>
+            <td><input type="checkbox" class="sem1"></td>
+            <td><input type="checkbox" class="sem2"></td>
+            <td><span class="action-btn remove-row">X</span></td>
+        `;
+        courseList.appendChild(row);
+
+        const newInput = row.querySelector('.course-code');
+        newInput.focus();
+    };
+
+    // Add one row to start with
+    addCourseRow();
+
+    addCourseBtn.addEventListener('click', addCourseRow);
+
+    // Handle remove button clicks using event delegation
+    courseList.addEventListener('click', (e) => {
+        if (e.target.classList.contains('remove-row')) {
+            e.target.closest('tr').remove();
+        }
+    });
+
+    getStatsBtn.addEventListener('click', () => {
+        statusDiv.style.display = 'none';
+        const coursesToScrape = {};
+        const rows = courseList.querySelectorAll('tr');
+
+        rows.forEach(row => {
+            const courseCodeInput = row.querySelector('.course-code');
+            const sem1Checked = row.querySelector('.sem1').checked;
+            const sem2Checked = row.querySelector('.sem2').checked;
+            
+            const courseCode = courseCodeInput.value.trim().toUpperCase();
+            if (courseCode) {
+                const semesters = [];
+                if (sem1Checked) semesters.push(1);
+                if (sem2Checked) semesters.push(2);
+                
+                if (semesters.length > 0) {
+                    coursesToScrape[courseCode] = semesters;
+                }
+            }
+        });
+
+        
+        if (Object.keys(coursesToScrape).length === 0) {
+            showStatus("Please enter at least one course.");
             return;
         }
-
-        const courseCodesRaw = courseInput.split(',');
-        const validCourseCodes = [];
-        const courseCodeRegex = /^[A-Z]{2,3}\s?\d{3,4}$/i; // Case-insensitive regex
-
-        // --- NEW VALIDATION BLOCK ---
-        for (const rawCode of courseCodesRaw) {
-            const code = rawCode.trim();
-            if (code && !courseCodeRegex.test(code)) {
-                showStatus(`Invalid course code format: "${code}"`, "error");
-                return; // Stop the process if any code is invalid
-            }
-            if (code) {
-                // Clean the code by removing spaces and making it uppercase
-                validCourseCodes.push(code.replace(/\s+/g, '').toUpperCase());
-            }
-        }
-        // -----------------------------
-
-        if (validCourseCodes.length === 0) {
-            showStatus("Please enter at least one course code.", "error");
-            return;
-        }
+        
 
         getStatsBtn.disabled = true;
         getStatsBtn.textContent = 'Working...';
-        
-        chrome.runtime.sendMessage({ action: "fetchGrades", courseCodes: validCourseCodes }, (response) => {
+
+        chrome.runtime.sendMessage({ action: "fetchGrades", courses: coursesToScrape }, (response) => {
             if (response && response.error) {
                 console.error("Error from background script:", response.error);
-                showStatus(response.error, "error");
-
+                showStatus("Error: " + response.error);
             } else if (response && response.data) {
-                console.log(`SUCCESS! Received ${response.data.length} grade tables:`);
+                console.log("SUCCESS! Received structured grade data:");
                 console.log(response.data);
-                showStatus(`Successfully fetched data for ${validCourseCodes.length} course(s).`, "success");
-
+                showStatus("Successfully fetched grades!");
             } else {
                 console.error("Received an empty or invalid response.");
-                showStatus("An unknown error occurred.", "error");
+                showStatus("Error: Received an empty or invalid response.");
             }
             
             getStatsBtn.disabled = false;
-            getStatsBtn.textContent = 'Get Stats';
+            getStatsBtn.textContent = 'Get All Stats';
         });
     });
 });
