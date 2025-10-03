@@ -39,28 +39,36 @@ function parseGradeTable(htmlString) {
             sectionName = sectionMatch[1];
         } else if (sectionHeader.includes("Total Grades Given")) {
             // Case 2: No explicit name, but it's a grades table (single-section course).
-            sectionName = "All"; // Assign a default name.
+            sectionName = "NA"; // Assign a default name.
         } else {
             // If it's not a grades table at all, skip it.
             return; 
         }
         // ------------------------------------
-        
+
         const sectionGrades = {};
         const gradeRows = table.querySelectorAll('tr');
+        let sectionTotal = 0;
 
         gradeRows.forEach(row => {
             const cells = row.querySelectorAll('td');
             if (cells.length === 2) {
                 const grade = cells[0].textContent.trim();
                 const count = parseInt(cells[1].textContent.trim(), 10);
-                if (grade && !isNaN(count) && grade.length <= 2 && grade !== 'II') {
+
+                if (grade === 'Total') {
+                    sectionTotal = count;
+                } else if (grade && !isNaN(count) && grade.length <= 2 && grade !== 'II') {
                     sectionGrades[grade] = count;
                     allGrades.add(grade);
                 }
             }
+
         });
-        sections[sectionName] = sectionGrades;
+        sections[sectionName] = {
+            grades: sectionGrades,
+            total: sectionTotal
+        };
     });
     
     // Sort grades for consistent chart ordering (e.g., AA, AB, BB...)
@@ -76,8 +84,8 @@ function createGroupedBarChart(canvasElement, parsedData) {
     const datasets = Object.keys(parsedData.sections).map((sectionName, index) => {
         const sectionData = parsedData.sections[sectionName];
         return {
-            label: `Section ${sectionName}`,
-            data: parsedData.allGrades.map(grade => sectionData[grade] || 0), // Use 0 if a section doesn't have a specific grade
+            label: `Section ${sectionName} (Total: ${sectionData.total})`,
+            data: parsedData.allGrades.map(grade => sectionData.grades[grade] || 0), // Use 0 if a section doesn't have a specific grade
             backgroundColor: colors[index % colors.length],
             borderColor: borderColors[index % borderColors.length],
             borderWidth: 1
@@ -95,7 +103,14 @@ function createGroupedBarChart(canvasElement, parsedData) {
                 title: {
                     display: true,
                     text: `Year: ${parsedData.year} - Semester ${parsedData.semester}`
-                }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                        return `${context.label}: ${context.raw}`;
+                    }
+                    }
+                },
             },
             scales: {
                 y: {
