@@ -1,4 +1,5 @@
 // parser.js
+Chart.register(ChartDataLabels);
 
 function parseGradeTable(htmlString) {
     const parser = new DOMParser();
@@ -115,12 +116,15 @@ function createGroupedBarChart(canvasElement, parsedData) {
                 },
                 datalabels: {
                     anchor: 'end',
-                    align: 'top',
+                    align: 'end',
+
+                    offset: -6,
                     // Only show a label if the value is greater than 0
                     formatter: (value) => value > 0 ? value : '',
                     color: '#363636',
                     font: {
-                        weight: 'bold'
+                        weight: 'normal',
+                        size: 9
                     }
                 }
             },
