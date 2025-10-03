@@ -7,10 +7,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 sendResponse({ error: "No active tab found." });
                 return;
             }
-            const tabId = tabs[0].id;
-            
-            performInPageScrape(tabId, request.courseCodes)
-                .then(htmlArray => sendResponse({ data: htmlArray }))
+            performInPageScrape(tabs[0].id, request.courses)
+                .then(data => sendResponse({ data: data }))
                 .catch(error => sendResponse({ error: error.message }));
         });
         return true; 
@@ -51,9 +49,8 @@ async function performInPageScrape(tabId, courseCodes) {
     }
 }
 
-// This "master script" now ONLY focuses on scraping data.
-// The 'finally' block has been REMOVED from this function.
-async function scrapeFunction(courseCodes) {
+// This "master script" is injected into the page to perform the automation.
+async function scrapeFunction(coursesToScrape) {
     const waitForElementInFrame = (frame, selector) => {
         return new Promise((resolve, reject) => {
             const timeout = 10000;
@@ -81,39 +78,52 @@ async function scrapeFunction(courseCodes) {
         const statsLink = menuFrame.document.querySelector('a[href*="gradstatistics.jsp"]');
         if (!statsLink) throw new Error(`Could not find 'Grading statistics' link.`);
         
-        const allResults = [];
+        const finalResults = {};
+        const currentYear = new Date().getFullYear();
 
-        for (const courseCode of courseCodes) {
-            statsLink.click();
-            await waitForElementInFrame(mainFrame, 'input[name="txtcrsecode"]');
+        // Outer loop: Iterate through each course from the popup
+        for (const courseCode in coursesToScrape) {
+            console.log(`--- Processing Course: ${courseCode} ---`);
+            finalResults[courseCode] = {};
+            const semestersToScrape = coursesToScrape[courseCode];
 
-            const mainFrameDoc = mainFrame.document;
-            const yearInput = mainFrameDoc.querySelector('select[name="year"]');
-            const semInput = mainFrameDoc.querySelector('select[name="semester"]');
-            const courseInput = mainFrameDoc.querySelector('input[name="txtcrsecode"]');
-            const submitButton = mainFrameDoc.querySelector('input[name="submit"]');
+            // Middle loop: Iterate through the last 4 years
+            for (let year = currentYear - 1; year >= currentYear - 4; year--) {
+                finalResults[courseCode][year] = {};
+                
+                // Inner loop: Iterate through selected semesters for that course
+                for (const semester of semestersToScrape) {
+                    console.log(`Fetching: ${courseCode}, Year: ${year}, Sem: ${semester}`);
+                    
+                    // 1. Navigate to the search page for each request
+                    statsLink.click();
+                    await waitForElementInFrame(mainFrame, 'input[name="txtcrsecode"]');
 
-            if (!courseInput || !submitButton || !yearInput || !semInput) throw new Error("Could not find all form elements.");
-            
-            yearInput.value = "2024";
-            semInput.value = "1";
-            courseInput.value = courseCode;
-            
-            const form = submitButton.closest('form');
-            if (!form) throw new Error("Could not find the form element to submit.");
-            
-            HTMLFormElement.prototype.submit.call(form);
-            
-            await waitForElementInFrame(mainFrame, '#grades'); 
-            const gradesTable = mainFrame.document.getElementById('grades');
-            if (gradesTable) {
-                allResults.push(gradesTable.outerHTML);
-            } else {
-                allResults.push(``);
+                    // 2. Fill and submit the form
+                    const mainFrameDoc = mainFrame.document;
+                    mainFrameDoc.querySelector('select[name="year"]').value = year;
+                    mainFrameDoc.querySelector('select[name="semester"]').value = semester;
+                    mainFrameDoc.querySelector('input[name="txtcrsecode"]').value = courseCode;
+                    const form = mainFrameDoc.querySelector('input[name="submit"]').closest('form');
+                    HTMLFormElement.prototype.submit.call(form);
+                    
+                    // 3. Wait for results and scrape the table
+                    try {
+                        await waitForElementInFrame(mainFrame, '#grades'); 
+                        const gradesTable = mainFrame.document.getElementById('grades');
+                        finalResults[courseCode][year][semester] = gradesTable ? gradesTable.outerHTML : "Not Found";
+                    } catch (e) {
+                        console.warn(`No grade table found for ${courseCode} (${year}-${semester}). It might not exist.`);
+                        finalResults[courseCode][year][semester] = "Not Found";
+                    }
+                }
             }
         }
-        return allResults;
+
+        return finalResults; // Return the final structured object
+
     } catch (error) {
-        return `Error: ${error.message}`;
+        console.error("In-page script error:", error);
+        return { error: error.message }; // Return an error object
     }
 }
