@@ -5,6 +5,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const courseList = document.getElementById('course-list');
     const statusDiv = document.getElementById('status');
     const chartsContainer = document.getElementById('charts-container');
+    const historyContainer = document.getElementById('history-container');
 
     const showStatus = (message,flag) => {
         if(flag){
@@ -15,8 +16,43 @@ document.addEventListener('DOMContentLoaded', function() {
         statusDiv.style.display = 'block';
     };
 
+    let allCourseData = {}; // Variable to hold all fetched data in memory
+
+    // --- Main Logic on Popup Open ---
+    chrome.storage.local.get(['allCourseData'], (result) => {
+        if (result.allCourseData) {
+            allCourseData = result.allCourseData;
+            console.log("Loaded data from storage.");
+            renderHistory(allCourseData);
+            // Optional: You can uncomment the next line to show the last session's charts on open.
+            // processData(allCourseData);
+        }
+    });
+
+    // --- NEW: Event listener for history clicks ---
+    historyContainer.addEventListener('click', (e) => {
+        if (e.target.classList.contains('history-link')) {
+            const courseCode = e.target.dataset.coursecode;
+            const courseData = { [courseCode]: allCourseData[courseCode] };
+            processData(courseData, true); // `true` tells it to append
+        }
+    });
+
+// --- NEW: Function to render the history links ---
+    function renderHistory(data) {
+        historyContainer.innerHTML = ''; // Clear old links
+        const courseCodes = Object.keys(data).sort();
+        courseCodes.forEach(code => {
+            const link = document.createElement('span');
+            link.className = 'history-link';
+            link.textContent = code;
+            link.dataset.coursecode = code; // Store code in a data attribute
+            historyContainer.appendChild(link);
+        });
+    }
+
     // Function to parse the HTML table and extract grade data
-    function processData(data) {
+    function processData(data,append=false) {
             chartsContainer.innerHTML = '';
             if (!data || Object.keys(data).length === 0) {
                 chartsContainer.textContent = 'No data to display.';
@@ -137,7 +173,15 @@ document.addEventListener('DOMContentLoaded', function() {
             if (response && response.error) {
                 showStatus("Error: " + response.error);
             } else if (response && response.data) {
-                processData(response.data);
+                const mergedData = { ...allCourseData, ...response.data };
+                allCourseData = mergedData; // Update our in-memory data
+
+                // Save merged data and re-render everything
+                chrome.storage.local.set({ allCourseData: mergedData }, () => {
+                    console.log("Data saved. Refreshing display.");
+                    renderHistory(mergedData); // Refresh history links
+                    processData(response.data, true); // Append only the new charts
+                });
             } else {
                 showStatus("Error: Received an empty or invalid response.");
             }
