@@ -3,19 +3,31 @@
 <head>
     <title>Course Helper</title>
     <style>
-        body { font-family: sans-serif; width: 500px; }
+        body { font-family: sans-serif; width: 850px; } /* Increased width */
         table { width: 100%; border-collapse: collapse; }
         th, td { text-align: left; padding: 6px; border-bottom: 1px solid #eee; }
         input[type="text"] { width: 100px; }
-        .action-btn { cursor: pointer; color: red; font-weight: bold; }
+        .action-btn { cursor: pointer; color: red; font-weight: bold; text-align: center; }
         button { width: 100%; padding: 8px; margin-top: 10px; }
-        #status {
-            display: none; padding: 8px; margin-top: 10px;
-            border-radius: 4px; font-size: 14px;
-            background-color: #ffebee; color: #c62828;
-            border: 1px solid #c62828;
+        #status { display: none; padding: 8px; margin-top: 10px; border-radius: 4px; font-size: 14px; }
+        .error { background-color: #ffebee; color: #c62828; }
+        .success { background-color: #e8f5e9; color: #2e7d32; }
+        .course-block { margin-top: 15px; }
+        
+        /* --- NEW CSS FOR THE GRID LAYOUT --- */
+        .charts-grid {
+            display: flex;       /* Enables Flexbox layout */
+            flex-wrap: wrap;     /* Allows charts to wrap to the next line */
+            gap: 15px;           /* Adds space between charts */
         }
-        .chart-container { margin-top: 20px; }
+        .chart-container {
+            flex: 1 1 48%;       /* Allows two items per row (48% + 48% + gap) */
+            box-sizing: border-box;
+            border: 1px solid #eee;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        /* ---------------------------------- */
     </style>
 </head>
 <body>

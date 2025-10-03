@@ -17,46 +17,61 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Function to parse the HTML table and extract grade data
     function processData(data) {
-        if (!data || Object.keys(data).length === 0) {
-            chartsContainer.textContent = 'No data to display.';
-            return;
-        }
+            chartsContainer.innerHTML = '';
+            if (!data || Object.keys(data).length === 0) {
+                chartsContainer.textContent = 'No data to display.';
+                return;
+            }
 
-        // Iterate through each course in the data object
-        for (const courseCode in data) {
-            const courseData = data[courseCode];
-            
-            // Create a block for the course
-            const courseBlock = document.createElement('div');
-            courseBlock.className = 'course-block';
-            courseBlock.innerHTML = `<h2>${courseCode}</h2>`;
-            
-            // Iterate through each year for that course
-            for (const year in courseData) {
-                const yearData = courseData[year];
+            for (const courseCode in data) {
+                const courseData = data[courseCode];
                 
-                // Iterate through each semester for that year
-                for (const semester in yearData) {
-                    const htmlString = yearData[semester];
-                    if (htmlString && htmlString !== "Not Found") {
-                        const parsedData = parseGradeTable(htmlString);
-                        if (parsedData) {
-                            // Create a container for the chart
-                            const chartContainer = document.createElement('div');
-                            chartContainer.className = 'chart-container';
+                const courseBlock = document.createElement('div');
+                courseBlock.className = 'course-block';
+                courseBlock.innerHTML = `<h2>${courseCode}</h2>`;
+                
+                // Create the grid container for this course's charts
+                const chartsGrid = document.createElement('div');
+                chartsGrid.className = 'charts-grid';
+                
+                for (const year in courseData) {
+                    const yearData = courseData[year];
 
-                            const canvas = document.createElement('canvas');
-                            chartContainer.appendChild(canvas);
-                            courseBlock.appendChild(chartContainer);
-                            
-                            // Create the chart on the new canvas
-                            createGroupedBarChart(canvas, parsedData);
+                    for (const semester in yearData) {
+                        const htmlString = yearData[semester];
+                        if (htmlString && htmlString !== "Not Found") {
+                            const parsedData = parseGradeTable(htmlString);
+                            // --- NEW DISPLAY LOGIC ---
+                    if (parsedData === null) {
+                        // Case 1: Course was not offered
+                        const infoEl = document.createElement('div');
+                        infoEl.className = 'chart-container'; // Use same styling for alignment
+                        infoEl.innerHTML = `<h4>Year: ${year} - Semester ${semester}</h4><p><i>Not offered in this semester.</i></p>`;
+                        chartsGrid.appendChild(infoEl);
+                    } else if (parsedData && Object.keys(parsedData.sections).length > 0) {
+                        // Case 2: Data found, create chart
+                        const chartContainer = document.createElement('div');
+                        chartContainer.className = 'chart-container';
+                        const canvas = document.createElement('canvas');
+                        chartContainer.appendChild(canvas);
+                        chartsGrid.appendChild(chartContainer);
+                        createGroupedBarChart(canvas, parsedData);
+                    } else {
+                        // Case 3: Page was found, but no grade data was parsed
+                        const infoEl = document.createElement('div');
+                        infoEl.className = 'chart-container';
+                        infoEl.innerHTML = `<h4>Year: ${year} - Semester ${semester}</h4><p><i>No grade data found.</i></p>`;
+                        chartsGrid.appendChild(infoEl);
+                    }
+                    // -------------------------
                         }
                     }
                 }
+                
+                // Add the grid to the main course block
+                courseBlock.appendChild(chartsGrid);
+                chartsContainer.appendChild(courseBlock);
             }
-            chartsContainer.appendChild(courseBlock);
-        }
     }
 
     // Function to add a new row to the table
@@ -122,27 +137,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (response && response.error) {
                 showStatus("Error: " + response.error);
             } else if (response && response.data) {
-                // --- Moved the processing logic directly inside the callback ---
-                for (const courseCode in response.data) {
-                    const courseBlock = document.createElement('div');
-                    courseBlock.className = 'course-block';
-                    courseBlock.innerHTML = `<h2>${courseCode}</h2>`;
-                    chartsContainer.appendChild(courseBlock);
-
-                    for (const year in response.data[courseCode]) {
-                        for (const semester in response.data[courseCode][year]) {
-                            const htmlString = response.data[courseCode][year][semester];
-                            if (htmlString && htmlString !== "Not Found") {
-                                const parsedData = parseGradeTable(htmlString);
-                                if (parsedData && Object.keys(parsedData.sections).length > 0) {
-                                    const canvas = document.createElement('canvas');
-                                    courseBlock.appendChild(canvas);
-                                    createGroupedBarChart(canvas, parsedData);
-                                }
-                            }
-                        }
-                    }
-                }
+                processData(response.data);
             } else {
                 showStatus("Error: Received an empty or invalid response.");
             }

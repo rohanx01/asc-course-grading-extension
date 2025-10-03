@@ -4,6 +4,14 @@ function parseGradeTable(htmlString) {
     const parser = new DOMParser();
     const doc = parser.parseFromString(htmlString, 'text/html');
 
+    // --- NEW ROBUSTNESS CHECK ---
+    // Check for the "NOT offered" message first.
+    const notOfferedEl = doc.querySelector('font[color="red"]');
+    if (notOfferedEl && notOfferedEl.textContent.includes("NOT offered in this semester")) {
+        return null; // Return null to indicate the course was not offered.
+    }
+    // ----------------------------
+
     const mainTable = doc.getElementById('grades');
     if (!mainTable) return null;
 
