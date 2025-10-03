@@ -3,38 +3,38 @@
 <head>
     <title>Course Helper</title>
     <style>
-        body { font-family: sans-serif; width: 400px; }
+        body { font-family: sans-serif; width: 500px; }
         table { width: 100%; border-collapse: collapse; }
-        th, td { text-align: left; padding: 6px; }
+        th, td { text-align: left; padding: 6px; border-bottom: 1px solid #eee; }
         input[type="text"] { width: 100px; }
         .action-btn { cursor: pointer; color: red; font-weight: bold; }
         button { width: 100%; padding: 8px; margin-top: 10px; }
         #status {
-            display: none; /* Hidden by default */
-            padding: 8px;
-            margin-top: 10px;
-            border-radius: 4px;
-            font-size: 14px;
-            background-color: #ffebee;
-            color: #000000;
-            border: 1px solid #000000;
+            display: none; padding: 8px; margin-top: 10px;
+            border-radius: 4px; font-size: 14px;
+            background-color: #ffebee; color: #c62828;
+            border: 1px solid #c62828;
         }
+        .chart-container { margin-top: 20px; }
     </style>
 </head>
 <body>
-    <h3>Get Grade Stats (Batch)</h3>
+    <h3>Get Grading Stats</h3>
     <table id="course-table">
         <thead>
             <tr><th>Course Code</th><th>Sem 1</th><th>Sem 2</th><th>Remove</th></tr>
         </thead>
-        <tbody id="course-list">
-            </tbody>
+        <tbody id="course-list"></tbody>
     </table>
     <button id="add-course-btn">+ Add Course</button>
     <button id="get-stats-btn">Get All Stats</button>
-    
     <div id="status"></div>
+    <hr>
     
+    <div id="charts-container"></div>
+
+    <script src="chart.js"></script>
+    <script src="parser.js"></script>
     <script src="popup.js"></script>
 </body>
 </html>
