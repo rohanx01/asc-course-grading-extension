@@ -30,10 +30,22 @@ function parseGradeTable(htmlString) {
 
     sectionTables.forEach(table => {
         const sectionHeader = table.querySelector('th')?.textContent || '';
-        const sectionMatch = sectionHeader.match(/section (\S+)/); // \S+ matches non-whitespace (e.g., D3, S1)
-        if (!sectionMatch) return;
-
-        const sectionName = sectionMatch[1];
+        let sectionName = null;
+        
+        // --- THIS IS THE NEW ROBUST LOGIC ---
+        const sectionMatch = sectionHeader.match(/section (\S+)/);
+        if (sectionMatch) {
+            // Case 1: An explicit section name like "D1" or "M" is found.
+            sectionName = sectionMatch[1];
+        } else if (sectionHeader.includes("Total Grades Given")) {
+            // Case 2: No explicit name, but it's a grades table (single-section course).
+            sectionName = "All"; // Assign a default name.
+        } else {
+            // If it's not a grades table at all, skip it.
+            return; 
+        }
+        // ------------------------------------
+        
         const sectionGrades = {};
         const gradeRows = table.querySelectorAll('tr');
 
