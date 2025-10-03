@@ -4,16 +4,23 @@ function parseGradeTable(htmlString) {
     const parser = new DOMParser();
     const doc = parser.parseFromString(htmlString, 'text/html');
 
-    // --- NEW ROBUSTNESS CHECK ---
-    // Check for the "NOT offered" message first.
-    const notOfferedEl = doc.querySelector('font[color="red"]');
-    if (notOfferedEl && notOfferedEl.textContent.includes("NOT offered in this semester")) {
-        return null; // Return null to indicate the course was not offered.
-    }
-    // ----------------------------
-
     const mainTable = doc.getElementById('grades');
     if (!mainTable) return null;
+
+    // --- NEW EFFICIENT & ROBUST LOGIC ---
+    // 1. Check for both conditions first, without exiting.
+    const notOfferedEl = doc.querySelector('font[color="red"]');
+    const isMarkedAsNotOffered = notOfferedEl && notOfferedEl.textContent.includes("NOT offered in this semester");
+
+    const sectionTables = mainTable.querySelectorAll('td[valign="top"] > table');
+    const hasGradeTables = sectionTables.length > 0;
+
+    // 2. Apply the logic.
+    if (!hasGradeTables && isMarkedAsNotOffered) {
+        // Exit early only if there are no grade tables AND the "Not Offered" message is present.
+        return null; 
+    }
+    // --- END OF NEW LOGIC ---
 
     // --- Extract Metadata ---
     const headerText = mainTable.querySelector('tr:first-child td')?.textContent || '';
@@ -26,7 +33,6 @@ function parseGradeTable(htmlString) {
     // --- Extract Grade Data for each Section ---
     const allGrades = new Set();
     const sections = {};
-    const sectionTables = mainTable.querySelectorAll('td[valign="top"] > table');
 
     sectionTables.forEach(table => {
         const sectionHeader = table.querySelector('th')?.textContent || '';
@@ -105,12 +111,18 @@ function createGroupedBarChart(canvasElement, parsedData) {
                     text: `Year: ${parsedData.year} - Semester ${parsedData.semester}`
                 },
                 tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                        return `${context.label}: ${context.raw}`;
-                    }
-                    }
+                    enabled: false // Disable tooltips to avoid overlap issues
                 },
+                datalabels: {
+                    anchor: 'end',
+                    align: 'top',
+                    // Only show a label if the value is greater than 0
+                    formatter: (value) => value > 0 ? value : '',
+                    color: '#363636',
+                    font: {
+                        weight: 'bold'
+                    }
+                }
             },
             scales: {
                 y: {
