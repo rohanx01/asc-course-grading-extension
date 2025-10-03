@@ -1,19 +1,27 @@
 // parser.js
+Chart.register(ChartDataLabels);
 
 function parseGradeTable(htmlString) {
     const parser = new DOMParser();
     const doc = parser.parseFromString(htmlString, 'text/html');
 
-    // --- NEW ROBUSTNESS CHECK ---
-    // Check for the "NOT offered" message first.
-    const notOfferedEl = doc.querySelector('font[color="red"]');
-    if (notOfferedEl && notOfferedEl.textContent.includes("NOT offered in this semester")) {
-        return null; // Return null to indicate the course was not offered.
-    }
-    // ----------------------------
-
     const mainTable = doc.getElementById('grades');
     if (!mainTable) return null;
+
+    // --- NEW EFFICIENT & ROBUST LOGIC ---
+    // 1. Check for both conditions first, without exiting.
+    const notOfferedEl = doc.querySelector('font[color="red"]');
+    const isMarkedAsNotOffered = notOfferedEl && notOfferedEl.textContent.includes("NOT offered in this semester");
+
+    const sectionTables = mainTable.querySelectorAll('td[valign="top"] > table');
+    const hasGradeTables = sectionTables.length > 0;
+
+    // 2. Apply the logic.
+    if (!hasGradeTables && isMarkedAsNotOffered) {
+        // Exit early only if there are no grade tables AND the "Not Offered" message is present.
+        return null; 
+    }
+    // --- END OF NEW LOGIC ---
 
     // --- Extract Metadata ---
     const headerText = mainTable.querySelector('tr:first-child td')?.textContent || '';
@@ -26,29 +34,48 @@ function parseGradeTable(htmlString) {
     // --- Extract Grade Data for each Section ---
     const allGrades = new Set();
     const sections = {};
-    const sectionTables = mainTable.querySelectorAll('td[valign="top"] > table');
 
     sectionTables.forEach(table => {
         const sectionHeader = table.querySelector('th')?.textContent || '';
-        const sectionMatch = sectionHeader.match(/section (\S+)/); // \S+ matches non-whitespace (e.g., D3, S1)
-        if (!sectionMatch) return;
+        let sectionName = null;
+        
+        // --- THIS IS THE NEW ROBUST LOGIC ---
+        const sectionMatch = sectionHeader.match(/section (\S+)/);
+        if (sectionMatch) {
+            // Case 1: An explicit section name like "D1" or "M" is found.
+            sectionName = sectionMatch[1];
+        } else if (sectionHeader.includes("Total Grades Given")) {
+            // Case 2: No explicit name, but it's a grades table (single-section course).
+            sectionName = "NA"; // Assign a default name.
+        } else {
+            // If it's not a grades table at all, skip it.
+            return; 
+        }
+        // ------------------------------------
 
-        const sectionName = sectionMatch[1];
         const sectionGrades = {};
         const gradeRows = table.querySelectorAll('tr');
+        let sectionTotal = 0;
 
         gradeRows.forEach(row => {
             const cells = row.querySelectorAll('td');
             if (cells.length === 2) {
                 const grade = cells[0].textContent.trim();
                 const count = parseInt(cells[1].textContent.trim(), 10);
-                if (grade && !isNaN(count) && grade.length <= 2 && grade !== 'II') {
+
+                if (grade === 'Total') {
+                    sectionTotal = count;
+                } else if (grade && !isNaN(count) && grade.length <= 2 && grade !== 'II') {
                     sectionGrades[grade] = count;
                     allGrades.add(grade);
                 }
             }
+
         });
-        sections[sectionName] = sectionGrades;
+        sections[sectionName] = {
+            grades: sectionGrades,
+            total: sectionTotal
+        };
     });
     
     // Sort grades for consistent chart ordering (e.g., AA, AB, BB...)
@@ -64,8 +91,8 @@ function createGroupedBarChart(canvasElement, parsedData) {
     const datasets = Object.keys(parsedData.sections).map((sectionName, index) => {
         const sectionData = parsedData.sections[sectionName];
         return {
-            label: `Section ${sectionName}`,
-            data: parsedData.allGrades.map(grade => sectionData[grade] || 0), // Use 0 if a section doesn't have a specific grade
+            label: `Section ${sectionName} (Total: ${sectionData.total})`,
+            data: parsedData.allGrades.map(grade => sectionData.grades[grade] || 0), // Use 0 if a section doesn't have a specific grade
             backgroundColor: colors[index % colors.length],
             borderColor: borderColors[index % borderColors.length],
             borderWidth: 1
@@ -83,6 +110,22 @@ function createGroupedBarChart(canvasElement, parsedData) {
                 title: {
                     display: true,
                     text: `Year: ${parsedData.year} - Semester ${parsedData.semester}`
+                },
+                tooltip: {
+                    enabled: false // Disable tooltips to avoid overlap issues
+                },
+                datalabels: {
+                    anchor: 'end',
+                    align: 'end',
+
+                    offset: -6,
+                    // Only show a label if the value is greater than 0
+                    formatter: (value) => value > 0 ? value : '',
+                    color: '#363636',
+                    font: {
+                        weight: 'normal',
+                        size: 9
+                    }
                 }
             },
             scales: {
