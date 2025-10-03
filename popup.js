@@ -4,11 +4,75 @@ document.addEventListener('DOMContentLoaded', function() {
     const getStatsBtn = document.getElementById('get-stats-btn');
     const courseList = document.getElementById('course-list');
     const statusDiv = document.getElementById('status');
+    const chartsContainer = document.getElementById('charts-container');
 
-    const showStatus = (message) => {
+    const showStatus = (message,flag) => {
+        if(flag){
+            statusDiv.style.color = 'green';
+            statusDiv.style.borderColor = 'green';
+        }
         statusDiv.textContent = message;
         statusDiv.style.display = 'block';
     };
+
+    // Function to parse the HTML table and extract grade data
+    function processData(data) {
+            chartsContainer.innerHTML = '';
+            if (!data || Object.keys(data).length === 0) {
+                chartsContainer.textContent = 'No data to display.';
+                return;
+            }
+
+            for (const courseCode in data) {
+                const courseData = data[courseCode];
+                
+                const courseBlock = document.createElement('div');
+                courseBlock.className = 'course-block';
+                courseBlock.innerHTML = `<h2>${courseCode}</h2>`;
+                
+                // Create the grid container for this course's charts
+                const chartsGrid = document.createElement('div');
+                chartsGrid.className = 'charts-grid';
+                
+                for (const year in courseData) {
+                    const yearData = courseData[year];
+
+                    for (const semester in yearData) {
+                        const htmlString = yearData[semester];
+                        if (htmlString && htmlString !== "Not Found") {
+                            const parsedData = parseGradeTable(htmlString);
+                            // --- NEW DISPLAY LOGIC ---
+                    if (parsedData === null) {
+                        // Case 1: Course was not offered
+                        const infoEl = document.createElement('div');
+                        infoEl.className = 'chart-container'; // Use same styling for alignment
+                        infoEl.innerHTML = `<h4>Year: ${year} - Semester ${semester}</h4><p><i>Not offered in this semester.</i></p>`;
+                        chartsGrid.appendChild(infoEl);
+                    } else if (parsedData && Object.keys(parsedData.sections).length > 0) {
+                        // Case 2: Data found, create chart
+                        const chartContainer = document.createElement('div');
+                        chartContainer.className = 'chart-container';
+                        const canvas = document.createElement('canvas');
+                        chartContainer.appendChild(canvas);
+                        chartsGrid.appendChild(chartContainer);
+                        createGroupedBarChart(canvas, parsedData);
+                    } else {
+                        // Case 3: Page was found, but no grade data was parsed
+                        const infoEl = document.createElement('div');
+                        infoEl.className = 'chart-container';
+                        infoEl.innerHTML = `<h4>Year: ${year} - Semester ${semester}</h4><p><i>No grade data found.</i></p>`;
+                        chartsGrid.appendChild(infoEl);
+                    }
+                    // -------------------------
+                        }
+                    }
+                }
+                
+                // Add the grid to the main course block
+                courseBlock.appendChild(chartsGrid);
+                chartsContainer.appendChild(courseBlock);
+            }
+    }
 
     // Function to add a new row to the table
     const addCourseRow = () => {
@@ -61,7 +125,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         
         if (Object.keys(coursesToScrape).length === 0) {
-            showStatus("Please enter at least one course.");
+            showStatus("Please enter at least one course.",false);
             return;
         }
         
@@ -71,14 +135,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
         chrome.runtime.sendMessage({ action: "fetchGrades", courses: coursesToScrape }, (response) => {
             if (response && response.error) {
-                console.error("Error from background script:", response.error);
                 showStatus("Error: " + response.error);
             } else if (response && response.data) {
-                console.log("SUCCESS! Received structured grade data:");
-                console.log(response.data);
-                showStatus("Successfully fetched grades!");
+                processData(response.data);
             } else {
-                console.error("Received an empty or invalid response.");
                 showStatus("Error: Received an empty or invalid response.");
             }
             
