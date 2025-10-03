@@ -6,13 +6,19 @@ document.addEventListener('DOMContentLoaded', function() {
     const statusDiv = document.getElementById('status');
     const chartsContainer = document.getElementById('charts-container');
     const historyContainer = document.getElementById('history-container');
+    const clearHistoryBtn = document.getElementById('clear-history-btn');
 
-    const showStatus = (message,flag) => {
-        if(flag){
-            statusDiv.style.color = 'green';
-            statusDiv.style.borderColor = 'green';
-        }
+    const showStatus = (message, isSuccess = false) => {
         statusDiv.textContent = message;
+        if (isSuccess) {
+            statusDiv.style.color = '#2e7d32';
+            statusDiv.style.borderColor = '#2e7d32';
+            statusDiv.style.backgroundColor = '#e8f5e9';
+        } else {
+            statusDiv.style.color = '#c62828';
+            statusDiv.style.borderColor = '#c62828';
+            statusDiv.style.backgroundColor = '#ffebee';
+        }
         statusDiv.style.display = 'block';
     };
 
@@ -29,6 +35,18 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    // --- NEW: Event listener for the Clear History button ---
+    clearHistoryBtn.addEventListener('click', () => {
+        if (confirm("Are you sure you want to delete all search history?")) {
+            chrome.storage.local.remove('allCourseData', () => {
+                allCourseData = {};
+                renderHistory({}); // Clear history links
+                chartsContainer.innerHTML = ''; // Also clear the charts
+                console.log("History cleared.");
+            });
+        }
+    });
+
     // --- NEW: Event listener for history clicks ---
     historyContainer.addEventListener('click', (e) => {
         if (e.target.classList.contains('history-link')) {
@@ -41,6 +59,7 @@ document.addEventListener('DOMContentLoaded', function() {
 // --- NEW: Function to render the history links ---
     function renderHistory(data) {
         historyContainer.innerHTML = ''; // Clear old links
+        if (!data) return;
         const courseCodes = Object.keys(data).sort();
         courseCodes.forEach(code => {
             const link = document.createElement('span');
@@ -61,6 +80,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
             for (const courseCode in data) {
                 const courseData = data[courseCode];
+
+                if (typeof courseData !== 'object') continue;
                 
                 const courseBlock = document.createElement('div');
                 courseBlock.className = 'course-block';
@@ -161,7 +182,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         
         if (Object.keys(coursesToScrape).length === 0) {
-            showStatus("Please enter at least one course.",false);
+            showStatus("Please enter at least one course.");
             return;
         }
         
@@ -170,9 +191,17 @@ document.addEventListener('DOMContentLoaded', function() {
         getStatsBtn.textContent = 'Working...';
 
         chrome.runtime.sendMessage({ action: "fetchGrades", courses: coursesToScrape }, (response) => {
-            if (response && response.error) {
-                showStatus("Error: " + response.error);
-            } else if (response && response.data) {
+            getStatsBtn.disabled = false;
+            getStatsBtn.textContent = 'Get All Stats';
+            
+            // --- CORRECTED ERROR HANDLING ---
+            if (response && response.data.error) {
+                console.error("Error from background script:", response.error);
+                showStatus(response.data.error,false); // Show the error...
+                return; // ...and STOP execution here.
+            }
+            if (response && response.data) {
+                console.log("Data received:", response);
                 const mergedData = { ...allCourseData, ...response.data };
                 allCourseData = mergedData; // Update our in-memory data
 
@@ -183,7 +212,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     processData(response.data, true); // Append only the new charts
                 });
             } else {
-                showStatus("Error: Received an empty or invalid response.");
+                showStatus("Error: Received an empty or invalid response.",false);
             }
             
             getStatsBtn.disabled = false;

@@ -16,16 +16,5 @@
   ],
   "host_permissions": [
     "https://asc.iitb.ac.in/*"
-  ],
-  "content_scripts": [
-    {
-      "matches": [
-        "https://asc.iitb.ac.in/*"
-      ],
-      "js": [
-        "content.js"
-      ],
-      "all_frames": true
-    }
   ]
 }

@@ -76,7 +76,7 @@ async function scrapeFunction(coursesToScrape) {
         if (!menuFrame || !mainFrame) throw new Error("Could not find page frames.");
 
         const statsLink = menuFrame.document.querySelector('a[href*="gradstatistics.jsp"]');
-        if (!statsLink) throw new Error(`Could not find 'Grading statistics' link.`);
+        if (!statsLink) throw new Error(`Could not find 'Grading statistics' link. Make sure it's visible in the menu.`);
         
         const finalResults = {};
         const currentYear = new Date().getFullYear();

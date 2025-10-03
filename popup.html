@@ -3,7 +3,7 @@
 <head>
     <title>Course Helper</title>
     <style>
-        body { font-family: sans-serif; width: 850px; } /* Increased width */
+        body { font-family: sans-serif; width: 850px; }
         table { width: 100%; border-collapse: collapse; }
         th, td { text-align: left; padding: 6px; border-bottom: 1px solid #eee; }
         input[type="text"] { width: 100px; }
@@ -13,35 +13,34 @@
         .error { background-color: #ffebee; color: #c62828; }
         .success { background-color: #e8f5e9; color: #2e7d32; }
         .course-block { margin-top: 15px; }
-        
-        /* --- NEW CSS FOR THE GRID LAYOUT --- */
-        .charts-grid {
-            display: flex;       /* Enables Flexbox layout */
-            flex-wrap: wrap;     /* Allows charts to wrap to the next line */
-            gap: 15px;           /* Adds space between charts */
-        }
-        .chart-container {
-            flex: 1 1 48%;       /* Allows two items per row (48% + 48% + gap) */
-            box-sizing: border-box;
-            border: 1px solid #eee;
-            padding: 10px;
-            border-radius: 5px;
-        }
-        #history-container {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
+        .charts-grid { display: flex; flex-wrap: wrap; gap: 15px; }
+        .chart-container { flex: 1 1 48%; box-sizing: border-box; border: 1px solid #eee; padding: 10px; border-radius: 5px; }
+        #history-container { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+        .history-link { cursor: pointer; padding: 4px 8px; background-color: #f0f0f0; border-radius: 4px; font-size: 12px; }
+        .history-link:hover { background-color: #e0e0e0; }
+
+        /* --- NEW CSS FOR POSITIONING THE BUTTON --- */
+        .history-header {
+            display: flex;                  /* Turns the div into a flex container */
+            justify-content: space-between; /* Pushes children to opposite ends */
+            align-items: center;            /* Vertically aligns the title and button */
             margin-top: 10px;
         }
-        .history-link {
-            cursor: pointer;
-            padding: 4px 8px;
-            background-color: #f0f0f0;
+        #clear-history-btn {
+            width: auto;       /* Let the button size itself */
+            margin: 0;
+            padding: 2px 8px;
+            font-size: 11px;
+            background-color: #f1f1f1;
+            border: 1px solid black;
             border-radius: 4px;
-            font-size: 12px;
+            color: black;
+            cursor: pointer;
         }
-        .history-link:hover { background-color: #e0e0e0; }
-        /* ---------------------------------- */
+        #clear-history-btn:hover {
+            background-color: #e1e1e1;
+        }
+        /* ------------------------------------ */
     </style>
 </head>
 <body>
@@ -57,9 +56,13 @@
     <div id="status"></div>
     <hr>
     
-    <h4>Previous Searches</h4>
+    <div class="history-header">
+        <h4>Previous Searches</h4>
+        <button id="clear-history-btn">Clear History</button>
+    </div>
     <div id="history-container"></div>
     <hr>
+
     <div id="charts-container"></div>
 
     <script src="chart.js"></script>
