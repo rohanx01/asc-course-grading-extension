@@ -51,7 +51,7 @@ To install and run this extension locally:
 2. Open Google Chrome and navigate to `chrome://extensions`.  
 3. Enable **Developer mode** using the toggle in the top-right corner.  
 4. Click the **Load unpacked** button.  
-5. Select the project folder where you saved the files.  
+5. Select the project folder (`/extension`) where you saved the files.  
 6. The extension icon will now appear in your browser’s toolbar.  
 
 ---
