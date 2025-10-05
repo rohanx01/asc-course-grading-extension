@@ -20,6 +20,8 @@ This tool provides a modern, user-friendly interface to quickly visualize and co
 
 ## ⚙️ How It Works
 
+<video src="[video](demo.mp4)" controls width="600"></video>
+
 The extension uses an **In-Page Automation** architecture.  
 
 When you request grade stats, a script is injected into your active, logged-in ASC portal page. This script:  
