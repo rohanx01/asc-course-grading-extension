@@ -20,7 +20,7 @@ This tool provides a modern, user-friendly interface to quickly visualize and co
 
 ## ⚙️ How It Works
 
-<video src="[video](demo.mp4)" controls width="600"></video>
+![ASC Grade Helper in Action](demo.gif)
 
 The extension uses an **In-Page Automation** architecture.  
 
